@@ -1,13 +1,13 @@
 locals {
   nic_vm = {
     nic_lin = {
-      name = "${var.resource_name_prefix}${random_pet.rg_name.prefix}myLinNIC"
+      name = "${var.resource_name_prefix}myLinNIC"
     }
     nic_win = {
-      name = "${var.resource_name_prefix}${random_pet.rg_name.prefix}myWinNIC"
+      name = "${var.resource_name_prefix}myWinNIC"
     }
     nic_sg = {
-      name = "${var.resource_name_prefix}${random_pet.rg_name.prefix}mySgNIC"
+      name = "${var.resource_name_prefix}mySgNIC"
     }
   }
 }
@@ -25,7 +25,7 @@ resource "azurerm_resource_group" "rg" {
 
 # Create virtual network
 resource "azurerm_virtual_network" "my_terraform_network" {
-  name                = "${var.resource_name_prefix}${random_pet.rg_name.prefix}Vnet" #The resource random_pet generates random pet names that are intended to be used as unique identifiers for other resources.
+  name                = "${var.resource_name_prefix}Vnet" #The resource random_pet generates random pet names that are intended to be used as unique identifiers for other resources.
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -33,7 +33,7 @@ resource "azurerm_virtual_network" "my_terraform_network" {
 
 # Create subnet
 resource "azurerm_subnet" "my_terraform_subnet" {
-  name                 = "${var.resource_name_prefix}${random_pet.rg_name.prefix}mySubnet"
+  name                 = "${var.resource_name_prefix}mySubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.my_terraform_network.name
   address_prefixes     = ["10.0.1.0/24"]
@@ -41,7 +41,7 @@ resource "azurerm_subnet" "my_terraform_subnet" {
 
 #Create Second Subnet
 resource "azurerm_subnet" "second_terraform_subnet" {
-  name                 = "${var.resource_name_prefix}${random_pet.rg_name.prefix}mySecondSubnet"
+  name                 = "${var.resource_name_prefix}mySecondSubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.my_terraform_network.name
   address_prefixes     = ["10.0.2.0/24"]
@@ -49,16 +49,21 @@ resource "azurerm_subnet" "second_terraform_subnet" {
 
 # Create public IPs for Linux
 resource "azurerm_public_ip" "my_terraform_public_ip" {
-  count               = 2
-  name                = "${var.resource_name_prefix}${random_pet.rg_name.prefix}myPublicIP"
+  for_each = {
+    for i in range(2) : "public_ip_${i}" => {
+      name = "${var.resource_name_prefix}myPublicIP${i}"
+    }
+  }
+  name                = each.value.name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
+  sku                 = "Basic"
 }
 
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "my_terraform_nsg" {
-  name                = "${var.resource_name_prefix}${random_pet.rg_name.prefix}myNetworkSecurityGroup"
+  name                = "${var.resource_name_prefix}myNetworkSecurityGroup"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -81,12 +86,11 @@ resource "azurerm_network_interface" "my_terraform_nic" {
   name                = each.value.name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
   ip_configuration {
-    name                          = "${var.resource_name_prefix}${random_pet.rg_name.prefix}my_nic_configuration"
+    name                          = "${var.resource_name_prefix}my_nic_configuration"
     subnet_id                     = azurerm_subnet.my_terraform_subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.my_terraform_public_ip[0].id
+    public_ip_address_id          = each.key == "nic_lin" ? azurerm_public_ip.my_terraform_public_ip["public_ip_0"].id : each.key == "nic_win" ? azurerm_public_ip.my_terraform_public_ip["public_ip_1"].id : null
   }
 }
 
@@ -131,7 +135,7 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   size                  = "Standard_DS1_v2"
 
   os_disk {
-    name                 = "${var.resource_name_prefix}${random_pet.rg_name.prefix}myOsDisk"
+    name                 = "${var.resource_name_prefix}myOsDisk"
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
   }
