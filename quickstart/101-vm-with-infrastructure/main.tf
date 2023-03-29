@@ -34,11 +34,9 @@ resource "azurerm_subnet" "second_terraform_subnet" {
 # Create public IPs for Linux
 resource "azurerm_public_ip" "my_terraform_public_ip" {
   for_each = {
-    for i in range(2) : "public_ip_${i}" => {
-      name = "${var.resource_name_prefix}myPublicIP${i}"
-    }
+    for i in range(2) : "public_ip_${i}" => "${i}"
   }
-  name                = each.value.name
+  name                = "${var.resource_name_prefix}myPublicIP${each.value}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
