@@ -17,7 +17,13 @@ variable "resource_name_prefix" {
 }
 
 variable "disaster_recovery_copies" {
-  type        = number
-  default     = 1
-  description = "Disaster recovery copies which value can be overwritten"
+  type        = map(string)
+  default     = {diag_sa_dr1 = "mydiag1", diag_sa_dr2 = "mydiag2", diag_sa_dr3  = "mydiag3"}
+  description = "Map of names for each DR copy of diag storage account "
+}
+
+variable "nic_vm" {
+  type        = map(string)
+  default     = {nic_lin = "myLinNIC", nic_win = "myWinNIC", nic_sg  = "mySgNIC"}
+  description = "Map of names for NIC used for the VMs"
 }
