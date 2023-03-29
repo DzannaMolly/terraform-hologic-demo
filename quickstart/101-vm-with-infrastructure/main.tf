@@ -1,19 +1,3 @@
-locals {
-  nic_vm = {
-    nic_lin = {
-      name = "${var.resource_name_prefix}myLinNIC"
-    }
-    nic_win = {
-      name = "${var.resource_name_prefix}myWinNIC"
-    }
-    nic_sg = {
-      name = "${var.resource_name_prefix}mySgNIC"
-    }
-  }
-}
-
-
-
 resource "random_pet" "rg_name" {
   prefix = var.resource_group_name_prefix
 }
@@ -82,8 +66,8 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
 
 # Create network interface
 resource "azurerm_network_interface" "my_terraform_nic" {
-  for_each            = local.nic_vm
-  name                = each.value.name
+  for_each            = var.nic_vm
+  name                = "${var.resource_name_prefix}${each.value}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   ip_configuration {
@@ -96,7 +80,8 @@ resource "azurerm_network_interface" "my_terraform_nic" {
 
 # Connect the security group to the network interface
 resource "azurerm_network_interface_security_group_association" "example" {
-  network_interface_id      = azurerm_network_interface.my_terraform_nic["nic_sg"].id
+  for_each                  = var.nic_vm
+  network_interface_id      = azurerm_network_interface.my_terraform_nic[each.key].id
   network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
 }
 
@@ -112,8 +97,8 @@ resource "random_id" "random_id" {
 
 # Create storage account for boot diagnostics
 resource "azurerm_storage_account" "my_storage_account" {
-  count                    = var.disaster_recovery_copies # Count Value read from variable
-  name                     = "diag${random_id.random_id.hex}"
+  for_each                 = var.disaster_recovery_copies # create a storage account for each value in the map
+  name                     = "${each.value}${random_id.random_id.hex}"
   location                 = azurerm_resource_group.rg.location
   resource_group_name      = azurerm_resource_group.rg.name
   account_tier             = "Standard"
@@ -157,7 +142,7 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   }
 
   boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.my_storage_account[0].primary_blob_endpoint
+    storage_account_uri = azurerm_storage_account.my_storage_account["diag_sa_dr1"].primary_blob_endpoint
   }
 }
 
